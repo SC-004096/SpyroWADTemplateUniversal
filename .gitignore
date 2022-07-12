@@ -1,0 +1,6 @@
+*
+!ref/
+!ref/*.png
+!.gitignore
+!README.md
+!SpyroWAD.bt
