@@ -12,7 +12,7 @@ Then, use either to open the `SpyroWAD.bt` file:
 >*CTRL+F5*
 *Templates -> Open Template*
 
-If you opened a Spyro 2 or 3 WAD, you'll want to change the line at the very end of `SpyroWAD.bt`:
+If you opened a Spyro 2 or 3 WAD, you'll want to change the line near the top of `SpyroWAD.bt`:
 
 `Directory root(GAME_SPYRO_1, DIRECTORY_ROOT);`
 

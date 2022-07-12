@@ -10,6 +10,24 @@
 //  ID Bytes: 
 //   History: Because we finally need some "documentation" for this file format.
 //------------------------------------------------
+enum GameType {
+	GAME_SPYRO_1_US,
+	GAME_SPYRO_1 = GAME_SPYRO_1_US,
+	GAME_SPYRO_1_EU,
+	GAME_SPYRO_1_JP, // Same as EU?
+	GAME_SPYRO_2,
+	GAME_SPYRO_3
+};
+enum DirectoryType {
+	DIRECTORY_ROOT,
+	DIRECTORY_SUBLEVEL
+};
+// Predeclarations - definitions below
+struct Directory;
+
+/* Change this line according to your WAD.WAD's game! */
+Directory root(GAME_SPYRO_1, DIRECTORY_ROOT);
+/* ------------------------------------------------------------------------- */
 #define DIR_HEADER_SIZE 2048
 #define DIR_MAGIC 2048
 #define ROOT_DIR_COUNT 256
@@ -35,8 +53,12 @@
 #define TEXTURE_DATA_NORMAL_SIZE 524288
 #define SUBLEVEL_MOBY_COUNT 64
 
+#define HEADER_ERROR_CODE 0xFFFFFFFF
+#define SUBDIR_COUNT 20
+
 // I don't really know what these are right now
-// These need actual structs kek
+// I know they are for when mapping the files out
+// but these are lifted from my C code
 #define MODEL_CHUNK_COUNT_STRUCT_1_S2 6
 #define MODEL_CHUNK_COUNT_STRUCT_2_S2 12
 #define MODEL_CHUNK_SIZE_STRUCT_1_S2 12
@@ -53,38 +75,22 @@
 
 // I'm still not sure why I have these in my code
 #define JUMP_AT_SKY 5
-#define JUMPS_TIL_AFTER_SKY_1_US (JUMP_AT_SKY + 1) // 6
+#define JUMPS_TIL_AFTER_SKY_1_US (JUMP_AT_SKY + 1)
 #define MODEL_CHUNK_AFTER_SKY JUMPS_TIL_AFTER_SKY_1_US
-#define MODEL_FILE_CHUNK_ID_TWO_AFTER_SKY_S3 (JUMPS_TIL_AFTER_SKY_1_US + 2) // 8
+#define MODEL_FILE_CHUNK_ID_TWO_AFTER_SKY_S3 (JUMPS_TIL_AFTER_SKY_1_US + 2)
 
 // What the fuck are these supposed to be
 #define S1_HOMEWORLD_EXTRA_SKY_STRUCT_BASE_SIZE 52
 #define S1_HOMEWORLD_EXTRA_SKY_STRUCT_POINT_SIZE 12
 
-#define HEADER_ERROR_CODE 0xFFFFFFFF
-#define SUBDIR_COUNT 20
-
-
-enum GameType {
-	GAME_SPYRO_1_US,
-	GAME_SPYRO_1 = GAME_SPYRO_1_US,
-	GAME_SPYRO_1_EU,
-	GAME_SPYRO_1_JP, // Same as EU?
-	GAME_SPYRO_2,
-	GAME_SPYRO_3
-};
-
-enum DirectoryType {
-	DIRECTORY_ROOT,
-	DIRECTORY_SUBLEVEL
-};
-typedef struct jmp {
-	uint32 offset;
-} Jump<read=Str("Offset [%d]", this.offset)>;
+// Used for jumplists
+typedef struct jmp { uint32 offset; } Jump<read=Str("Offset [%d]", this.offset)>;
+// Used for unmapped binary blob bits
 typedef struct blobby (uint64 size){
 	local uint64 arrsize = size;
 	byte data[size];
-} Blob; // <read=Str("(%d)", this.arrsize)>
+} Blob;
+// Used in headers that map out where the files are / their size
 typedef struct file_entry {
     uint32 offset <format=decimal>; 
     uint32 size <format=decimal>;
@@ -93,12 +99,16 @@ typedef struct file_entry {
 
 
 struct DirectoryListing;
+struct DirectoryFiles;
+
+// More for some delicious functions that I need
 int handle_spyro1_sublevel(DirectoryListing &header);
 int handle_spyro2_sublevel(DirectoryListing &header);
 int handle_spyro3_sublevel(DirectoryListing &header);
+
 int populate_file_entries(uint64 total_possible_dir_count, uint &found_count, uint &file_count, uint &dir_count, uint64 &header_base);
 int populate_header_something(DirectoryListing &header, uint &found);
-struct DirectoryFiles;
+
 
 
 typedef struct Dir (GameType game, DirectoryType dirtype) {
@@ -132,9 +142,9 @@ typedef struct Dir (GameType game, DirectoryType dirtype) {
 		Exit(1);
 	}
 	DirectoryListing header(dir_max); // <open=true>
-	DirectoryFiles files(header); //<open=true>;
+	DirectoryFiles files(header); // <open=true>
 	
-} Directory<open=true, read=Str("Max Directory Count: %d", dir_max)>; // 
+} Directory<open=true, read=Str("Max Directory Count: %d", dir_max)>;
 
 typedef struct DirHeaderList (uint32 max_directories) {
 	local uint64 base = FTell(); // DO NOT REMOVE, used in DirectoryFiles, sublevel_ functions
@@ -174,7 +184,6 @@ typedef struct DirectoryFiles(DirectoryListing &header) {
 	local int64 seek_offset = 0;
 	for(i = 0; i < header.found; ++i){
 		seek_offset = header.file[i].offset + header.base;
-		// Printf("Seek to (%d + %d) = %d\r\n", header.file[i].offset, header.base, seek_offset);
 		FSeek(seek_offset);
 		if(header.file[i].isDirectory){
 			// The previous file entry was some sort of pointer list for the sublevel - for non credits
@@ -205,13 +214,13 @@ typedef struct DirectoryFiles(DirectoryListing &header) {
 	}
 } DirectoryFiles;
 
-// Need to know the EXACT spyro 1 type
+
 int handle_spyro1_sublevel(DirectoryListing &header){
 	if(!header.file[i].size) {
 		local int next_file = i + 1;
 		// TODO - This deals with credits files where the first file's size
-		// Seems to  be set to 0. But I want to be able to deal with
-		// If all consecutives are set to zero as well.
+		// Seems to be set to 0. But I want to be able to deal with
+		// If all consecutives are set to zero as well (but offsets still exist)
 
 		// TODO - Credit files mapping and also be able to count
 		// how many playable sublevels there are / unplayable credits levels
@@ -258,12 +267,12 @@ uint32 populate_header_jumplist(DirectoryListing &header, uint &found){
 		Printf("Jumplist size invalid (did you forget to add to Dir switch?): %d\r\n", jumplist_size);
 		return HEADER_ERROR_CODE;
 	}
-	// Printf("%d, %d\r\n", jumplist_size, jumplist_max);
-	// Printf("%d - %d = %d (%d)\r\n", header_size, header_dirsize, (jumplist_size - header_dirsize), jumplist_max);
+
 	for(i = 0; i < jumplist_max; ++i){
 		current = ReadUInt();
 		FSkip(sizeof(uint32));
 		next = ReadUInt();
+
 		if(current > fsize) {
 			Printf("There was an error parsing the header jump list? (%d > %d)\r\n", current, fsize);
 			Exit(1);
@@ -273,15 +282,14 @@ uint32 populate_header_jumplist(DirectoryListing &header, uint &found){
 			Printf("Next offset %d is greater than filesize %d - (%d of %d)\r\n", next, fsize, i + 1, jumplist_max);
 			return jumplist_found;
 		}
-		
 		// If current is 0, or they are equivalent, or both are 0, next
 		if(!current || current == next || !current && !next) continue;
-	
 		FSkip(-sizeof(current));
 		// Back at current, add to jump list
 		Jump jumpyboi<bgcolor=cRed>;
 		++jumplist_found;
 	}
+
 	found = jumplist_found;
 	return jumplist_found;
 }
@@ -297,9 +305,9 @@ int populate_file_entries(uint64 total_possible_dir_count, uint &found_count, ui
 	local uint32 is_dir = 0;
 	local int64 offsize = 0;
 	local uint64 file_entry_offs = 0;
+
 	for(i = 0; i < total_possible_dir_count; ++i){
 		file_entry_offs =  FTell();
-		// TODO - DRY this
 		offset = ReadUInt();
 		FSkip(sizeof(uint32));
 		size = ReadUInt();
@@ -307,6 +315,7 @@ int populate_file_entries(uint64 total_possible_dir_count, uint &found_count, ui
 		next_offset = ReadUInt();
 		FSkip(-sizeof(FileEntry));
 		// If we are both 0, skip. If an offset exists but no size, and the next offset is the same, skip to it
+
 		if(!offset && !size
 			|| (offset && !size
 			// If the next offset is equal to the offset of
@@ -315,7 +324,8 @@ int populate_file_entries(uint64 total_possible_dir_count, uint &found_count, ui
 			&& next_offset == offset)
 			|| offset == fsize // Happens in some Spyro 3 Files (Crash Bash & Spyro ex)
 			|| (offset + size) > fsize
-		) {  // Could be a problem... may wanna errmsg here 
+		) {
+			// Could be a problem... may wanna errmsg here 
 			FSkip(sizeof(FileEntry));
 			continue;
 		}
@@ -323,17 +333,15 @@ int populate_file_entries(uint64 total_possible_dir_count, uint &found_count, ui
 		// Based on the offset of the next one. If the size
 		// is 0 or less (somehow, gross) we just skip this file. 
 		if(offset && !size && next_offset != offset) size = next_offset - offset; // For credits files
-		
 		if(!size) {
 			FSkip(sizeof(FileEntry));
 			continue;
 		}
-
 		// Obviously if the data goes past EOF or something like that should not happen
 		offsize = offset + size;
 		if(offsize > fsize){
 			Printf("Error with file parse. File at %u Offset %u Size %u (%u) greater than filesize %u, %u bytes over EOF.\r\n", found_count + 1, offset, size, offsize, fsize, fsize - offsize);
-			return 0xFFFFFFFF;
+			return HEADER_ERROR_CODE;
 		}
 
 		// Read the offset/size pair from file
@@ -355,6 +363,3 @@ int populate_file_entries(uint64 total_possible_dir_count, uint &found_count, ui
 	// Note: We do not have to seek back to base here because of how BTs work
 	return found_count;
 }
-
-
-Directory root(GAME_SPYRO_1, DIRECTORY_ROOT);
