@@ -1,5 +1,5 @@
 //------------------------------------------------
-//--- 010 Editor v11.0.1 Binary Template
+//--- 010 Editor v12.0.1 Binary Template
 //
 //      File: SpyroWAD
 //   Authors: Symbiosis - Thal
@@ -92,7 +92,6 @@ typedef struct file_entry {
 } FileEntry <size=8, read=Str("%s [%d, %d]", (this.isDirectory) ? "Directory" : "File", this.offset, this.size)>;
 
 
-
 struct DirectoryListing;
 int handle_spyro1_sublevel(DirectoryListing &header);
 int handle_spyro2_sublevel(DirectoryListing &header);
@@ -100,6 +99,7 @@ int handle_spyro3_sublevel(DirectoryListing &header);
 int populate_file_entries(uint64 total_possible_dir_count, uint &found_count, uint &file_count, uint &dir_count, uint64 &header_base);
 int populate_header_something(DirectoryListing &header, uint &found);
 struct DirectoryFiles;
+
 
 typedef struct Dir (GameType game, DirectoryType dirtype) {
 	local GameType type = game;
@@ -124,14 +124,13 @@ typedef struct Dir (GameType game, DirectoryType dirtype) {
 		} break;
 		case GAME_SPYRO_3: {
 			dir_max = (dirtype != DIRECTORY_SUBLEVEL) ? ROOT_DIR_COUNT : SUBLEVEL_DIR_COUNT_3_US;
-			jumplist_max = SUBLEVEL_DIR_HEADER_JUMPLIST_COUNT_1;// SUBLEVEL_DIR_HEADER_JUMPLIST_COUNT_3;
+			jumplist_max = SUBLEVEL_DIR_HEADER_JUMPLIST_COUNT_1;
 		} break;
 	}
 	if(!dir_max) {
 		Printf("Unknown or invalid game type - dir_max not set!\r\n.");
 		Exit(1);
 	}
-	// if(dirtype == DIRECTORY_SUBLEVEL) Printf("%d\r\n", parentof(parentof(this)).header.found);
 	DirectoryListing header(dir_max); // <open=true>
 	DirectoryFiles files(header); //<open=true>;
 	
@@ -159,23 +158,9 @@ typedef struct DirHeaderList (uint32 max_directories) {
 			Exit(1);
 		}
 		if(!jumplist_found && !something_found){
-
+			// Spyro 1, this is probably credits file
 		}
-
-
 	}	
-
-
-	
-	// switch(parentof(this).type){
-	// 	case GAME_SPYRO_1_US: case GAME_SPYRO_1_EU: case GAME_SPYRO_1_JP: { handle_spyro1_sublevel(this); } break;
-	// 	case GAME_SPYRO_2: { handle_spyro2_sublevel(this); } break;
-	// 	case GAME_SPYRO_3: { handle_spyro3_sublevel(this); } break;
-	// }
-
-	
-	// This, however, is not
-	// handle_spyro1_sublevel(this);
 	Printf("%u found, %d files, %d directories @ %d - Jumplist %d | Something %d\r\n", found, files, directories, base, this.jumplist_found, this.something_found);
 } DirectoryListing<read=Str("%d Files, %d Directories @ %d | Jumplist %d | Something %d", this.files, this.directories, this.base, this.jumplist_found, this.something_found/*, this.jumplist_found*/)>; // , %d Jumps @ Head
 
@@ -208,8 +193,6 @@ typedef struct DirectoryFiles(DirectoryListing &header) {
 						Blob file(header.file[i].size);
 						// FSkip(header.file[i].size);
 					} break;
-					// case GAME_SPYRO_2: {} break;
-					// case GAME_SPYRO_3: {} break;
 				};
 				// We are a directory not root
 				// FSkip(header.file[i].size);
@@ -218,18 +201,12 @@ typedef struct DirectoryFiles(DirectoryListing &header) {
 				Blob file(header.file[i].size);
 				
 			}
-
-
-			// Blob file(header.file[i].size);
-			// FSkip(header.file[i].size);
 		}
 	}
 } DirectoryFiles;
 
 // Need to know the EXACT spyro 1 type
 int handle_spyro1_sublevel(DirectoryListing &header){
-
-
 	if(!header.file[i].size) {
 		local int next_file = i + 1;
 		// TODO - This deals with credits files where the first file's size
@@ -239,69 +216,44 @@ int handle_spyro1_sublevel(DirectoryListing &header){
 		// TODO - Credit files mapping and also be able to count
 		// how many playable sublevels there are / unplayable credits levels
 		// and other misc levels (such as cutscenes, main menu levels)
-
 		if(next_file < header.found) {
 			Printf("%d, %d | %d\n", i, next_file, header.found);
 			Printf("%d - %d | %d\n", header.file[i + 1].offset, header.file[i + 1].size, header.file[i + 1].offset - header.file[i].size);
-		}// Check offset of next if available
-		// local int next_file = i + 1;
-		// Make sure we don't go out of bounds
-		// if(next_file < header.found){
-			// if(header[next_file].offset != header[i].offset) {
-				// Printf("%d\n", header[i + 1].offset - header[i].size);
-				// header.file[i].size = header[next_file].offset - 
-			// }
-		// }
+		}
 	}
 	if(header.file[i].size) {
 		Blob file(header.file[i].size);
 	}
 	return 0;
 }
+
 int handle_spyro2_sublevel(DirectoryListing &header){ return 0; }
-int handle_spyro3_sublevel(DirectoryListing &header){
-	local uint32 entries_maxsize = parentof(header).dir_max * sizeof(FileEntry);
-	local uint32 jumplist_maxsize = parentof(header).jumplist_max * sizeof(Jump);
-	local uint64 coffs = header.base + entries_maxsize + jumplist_maxsize;
-	if(parentof(header).dirtype != DIRECTORY_ROOT) {
-		
-	}
-	return 0;
-}
+int handle_spyro3_sublevel(DirectoryListing &header){ return 0; }
 
 int populate_header_something(DirectoryListing &header, uint &found){
-	// local uint32 t = header.base;
 	local int i = 0;
 	local uint32 something_found = 0;
 	local uint32 current = 0;
-	
+	// This is nasty, but headers seem to all be of size 2048, wip anyway
 	for(i = 0; i < 408; ++i){
 		current = ReadUInt();
 		if(current != 0) {
 			Jump thing<bgcolor=cBlue>;
 			++found;
 		}
-		
-
 	}
-
 	return 0;
 }
 
 uint32 populate_header_jumplist(DirectoryListing &header, uint &found){
-	// local uint32 header_size = header.file[0].offset;
-	// local uint32 base = FTell(); // offset of the jump list
-	// local uint32 header_dirsize = max_directories * sizeof(FileEntry);
 	local int i = 0;
 	local uint32 jumplist_found = 0;
 	local uint64 fsize = FileSize();
 	local uint32 jumplist_size = parentof(header).jumplist_max * sizeof(uint32);
-	
 	local uint32 jumplist_max = jumplist_size / sizeof(uint32);
 	local uint32 current = 0;
 	local uint32 next = 0;
-	// local uint64 base = FTell();
-	
+
 	if(!jumplist_size || jumplist_size < sizeof(uint32)) {
 		Printf("Jumplist size invalid (did you forget to add to Dir switch?): %d\r\n", jumplist_size);
 		return HEADER_ERROR_CODE;
@@ -309,8 +261,6 @@ uint32 populate_header_jumplist(DirectoryListing &header, uint &found){
 	// Printf("%d, %d\r\n", jumplist_size, jumplist_max);
 	// Printf("%d - %d = %d (%d)\r\n", header_size, header_dirsize, (jumplist_size - header_dirsize), jumplist_max);
 	for(i = 0; i < jumplist_max; ++i){
-		// TODO - DRY
-		// Read the first jump, and the next, then position back
 		current = ReadUInt();
 		FSkip(sizeof(uint32));
 		next = ReadUInt();
@@ -320,7 +270,7 @@ uint32 populate_header_jumplist(DirectoryListing &header, uint &found){
 		}
 		// If next is greater than the fsize we probably reached the end of the header
 		if(next > fsize) {
-			// Printf("Next offset %d is greater than filesize %d - (%d of %d)\r\n", next, fsize, i + 1, jumplist_max);
+			Printf("Next offset %d is greater than filesize %d - (%d of %d)\r\n", next, fsize, i + 1, jumplist_max);
 			return jumplist_found;
 		}
 		
@@ -347,7 +297,7 @@ int populate_file_entries(uint64 total_possible_dir_count, uint &found_count, ui
 	local uint32 is_dir = 0;
 	local int64 offsize = 0;
 	local uint64 file_entry_offs = 0;
-	for(i = 0; i < total_possible_dir_count; ++i){ // total_possible_dir_count
+	for(i = 0; i < total_possible_dir_count; ++i){
 		file_entry_offs =  FTell();
 		// TODO - DRY this
 		offset = ReadUInt();
@@ -356,15 +306,13 @@ int populate_file_entries(uint64 total_possible_dir_count, uint &found_count, ui
 		FSkip(sizeof(uint32));
 		next_offset = ReadUInt();
 		FSkip(-sizeof(FileEntry));
-		// Printf("[%u, %u - %u]\r\n", offset, size, next_offset);
 		// If we are both 0, skip. If an offset exists but no size, and the next offset is the same, skip to it
-
 		if(!offset && !size
 			|| (offset && !size
 			// If the next offset is equal to the offset of
 			// the current file then we can just skip this file
 			// and move on to the next iteration.
-			&& next_offset == offset) // Can really be && or ||, doesn't matter? TODO
+			&& next_offset == offset)
 			|| offset == fsize // Happens in some Spyro 3 Files (Crash Bash & Spyro ex)
 			|| (offset + size) > fsize
 		) {  // Could be a problem... may wanna errmsg here 
@@ -389,7 +337,7 @@ int populate_file_entries(uint64 total_possible_dir_count, uint &found_count, ui
 		}
 
 		// Read the offset/size pair from file
-		FileEntry file<bgcolor=cGreen>; // <bgcolor=cBlue>
+		FileEntry file<bgcolor=cGreen>;
 		++found_count;
 		// Check if the given file entry is a directory or not
 		// And then seek back to the original position
@@ -404,7 +352,6 @@ int populate_file_entries(uint64 total_possible_dir_count, uint &found_count, ui
 		}
 		FSeek(seekback);
 	}
-	
 	// Note: We do not have to seek back to base here because of how BTs work
 	return found_count;
 }
