@@ -147,6 +147,13 @@ typedef struct Dir (GameType game, DirectoryType dirtype) {
 
 typedef struct DirHeaderList (uint32 max_directories) {
 	local uint64 base = FTell(); // DO NOT REMOVE, used in DirectoryFiles, sublevel_ functions
+	// Helpers for some disgusting offset stuffs
+	local uint32 entries_maxsize = parentof(this).dir_max * sizeof(FileEntry);
+	local uint32 jumplist_maxsize = parentof(this).jumplist_max * sizeof(Jump);
+	local uint64 coffs = this.base + entries_maxsize + jumplist_maxsize;
+	local uint64 something_maxsize = 0;
+	Printf("%d | %d | %d | %d\r\n", entries_maxsize, jumplist_maxsize, coffs, something_maxsize);
+	// Stuff actually relevant to this struct
 	local uint found = 0, files = 0, directories = 0;
 	local uint jumplist_found = 0;
 	local uint something_found = 0;
@@ -156,6 +163,11 @@ typedef struct DirHeaderList (uint32 max_directories) {
 		Printf("There was an error populating file entries.\r\n");
 		Exit(1);
 	}
+	// Whether or not the game can use this many I don't know, but
+	// I think the rest of the header is just, these weird values
+	something_maxsize = (this.file[0].offset - entries_maxsize - jumplist_maxsize) / sizeof(uint32);
+	
+	
 	if(parentof(header).dirtype != DIRECTORY_ROOT) {
 		jumplist_found = populate_header_jumplist(this, jumplist_found);
 		if(HEADER_ERROR_CODE == jumplist_found) {
@@ -166,19 +178,18 @@ typedef struct DirHeaderList (uint32 max_directories) {
 			Printf("There was an error populating the \"SOMETHING\" list\r\n");
 			Exit(1);
 		}
-		if(!jumplist_found && !something_found){
-			// Spyro 1, this is probably credits file
+		if(!jumplist_found && !something_found
+			|| jumplist_found == 1 && !something_found){
+			// Spyro 1, this is probably credits file (if 0 and 0)
+			// Otherwise, credits for 2 and 3???
 		}
+		// Cutscene levels are different, looks like they are usally < 10 jumplist, 0 something
+		// But main levels also can have 0 of "something" so I don't know what this is...
 	}	
 	Printf("%u found, %d files, %d directories @ %d - Jumplist %d | Something %d\r\n", found, files, directories, base, this.jumplist_found, this.something_found);
 } DirectoryListing<read=Str("%d Files, %d Directories @ %d | Jumplist %d | Something %d", this.files, this.directories, this.base, this.jumplist_found, this.something_found/*, this.jumplist_found*/)>; // , %d Jumps @ Head
 
 typedef struct DirectoryFiles(DirectoryListing &header) {
-	// Helpers for some disgusting offset stuffs
-	local uint32 entries_maxsize = parentof(header).dir_max * sizeof(FileEntry);
-	local uint32 jumplist_maxsize = parentof(header).jumplist_max * sizeof(Jump);
-	local uint64 coffs = header.base + entries_maxsize + jumplist_maxsize;
-
 	local int i = 0;
 	local int64 seek_offset = 0;
 	for(i = 0; i < header.found; ++i){
@@ -187,7 +198,7 @@ typedef struct DirectoryFiles(DirectoryListing &header) {
 		if(header.file[i].isDirectory){
 			// The previous file entry was some sort of pointer list for the sublevel - for non credits
 			// if(i > 0) Printf("Previous file: %d, %d - Current I: %d\n", header.file[i - 1].offset, header.file[i - 1].size, i);
-			Directory sublevel(parentof(header).type, DIRECTORY_SUBLEVEL);	
+			Directory sublevel(parentof(header).type, DIRECTORY_SUBLEVEL)<open=true>;	
 		} else {
 			if(parentof(header).dirtype != DIRECTORY_ROOT){
 				switch(parentof(header).type){
@@ -214,7 +225,8 @@ typedef struct DirectoryFiles(DirectoryListing &header) {
 } DirectoryFiles;
 
 
-int handle_spyro1_sublevel(DirectoryListing &header){
+void tmp_add_binary_blob_files(DirectoryListing &header){
+	local uint32 real_size = 0;
 	if(!header.file[i].size) {
 		local int next_file = i + 1;
 		// TODO - This deals with credits files where the first file's size
@@ -224,19 +236,65 @@ int handle_spyro1_sublevel(DirectoryListing &header){
 		// TODO - Credit files mapping and also be able to count
 		// how many playable sublevels there are / unplayable credits levels
 		// and other misc levels (such as cutscenes, main menu levels)
-		if(next_file < header.found) {
-			Printf("%d, %d | %d\n", i, next_file, header.found);
-			Printf("%d - %d | %d\n", header.file[i + 1].offset, header.file[i + 1].size, header.file[i + 1].offset - header.file[i].size);
-		}
+		if(next_file < header.found) real_size = header.file[i + 1].offset - header.file[i].size;
 	}
-	if(header.file[i].size) {
+	if(real_size) {
+		Blob file(real_size);
+	} else {
 		Blob file(header.file[i].size);
 	}
-	return 0;
 }
 
-int handle_spyro2_sublevel(DirectoryListing &header){ return 0; }
-int handle_spyro3_sublevel(DirectoryListing &header){ return 0; }
+int handle_spyro1_sublevel(DirectoryListing &header){
+	// First file: VRAM, VAG sounds
+	// 		Terrain texture coordinates, terrain model,
+	// 		some sort of terrain and sky optimization,
+	//		surface props, terrain collision model,
+	//		(n = sky model count), n sky models, 
+	//		sky portal structure(s) (TODO: forgot exactly how they are laid out)
+	//		particle texture coordinates, sound table (diff format from 2/3)
+	tmp_add_binary_blob_files(header);
+	return 0;
+}
+int handle_spyro2_sublevel(DirectoryListing &header){
+	local uint32 real_size = 0;
+	// First file: VRAM, Atlas Graphics, VAG sounds
+	// Second: Terrain texture coordinates, Terrain model, 
+	// 		some sort of terrain optimization, 
+	// 		some sort of sky optimization, surface props, 
+	// 		underwater lighting, spyro underwater vertex lighting,
+	// 		terrain collision model, sky model
+	//		sky portal structure, particle texture coordinates,
+	// 		camera flight paths, sound table
+	// Third: moby models probably
+	// Fourth: ? Dynamic level data (text, character, terrain model animations)
+	// N+: (Gateway to Glimmer) French, German, Spanish, Italian language data
+	
+	tmp_add_binary_blob_files(header);
+	return 0;
+}
+int handle_spyro3_sublevel(DirectoryListing &header){
+	local uint32 real_size = 0;
+	// First file: VRAM, VAG sounds
+	// Second: Terrain texture coordinates, terrain model,
+	//		 surface props, underwater lighting,
+	//		spyro vertex underwater lighting,
+	//		terrain collision model, sky model,
+	//		sky portal structure, particle texture coordinates,
+	//		egg zone, camera flight paths, sound table
+	// Third: additional textures block, some sort of terrain optimization,
+	//		Some sort of sky optimization, moby models probably
+	// Fourth: ? Dynamic level data (text, character, terrain model animations)
+	// Fifth: 3d models for sublevel (starts with frame count), model offsets (256 bytes),
+	//		model entity ids (128 bytes), sublevel terrain model, 
+	//		some sort of sublevel terrain optimization, 
+	//		dummy placeholder for sky optimization (ignore, is in next file),
+	//		sublevel surface props, additional textures block
+	// N+: sublevels with overlays possibly also, or eggs?
+	
+	tmp_add_binary_blob_files(header);
+	return 0;
+}
 
 int populate_header_something(DirectoryListing &header, uint &found){
 	local int i = 0;
