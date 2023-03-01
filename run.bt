@@ -1,0 +1,20 @@
+//------------------------------------------------
+//--- 010 Editor v12.0.1 Binary Template
+//
+//      File: run
+//   Authors: Symbiosis - Thal
+//   Purpose: Universal template for the WADs of all three classic games (hopefully, including weird versions)
+//   History: Because we finally need some "documentation" for this file format.
+//------------------------------------------------
+#include "SpyroWAD.bt"
+// Valid types to use:
+// GAME_SPYRO_1_US,
+// GAME_SPYRO_1 = GAME_SPYRO_1_US,
+
+/* Below are not quite implemented yet: */
+// GAME_SPYRO_1_EU,
+// GAME_SPYRO_1_JP,
+// GAME_SPYRO_2,
+// GAME_SPYRO_3
+
+Directory root(GAME_SPYRO_1, DIRECTORY_ROOT);

@@ -1,0 +1,36 @@
+//------------------------------------------------
+//--- 010 Editor v12.0.1 Binary Template
+//
+//      File: SpyroDefs_Common
+//   Authors: Symbiosis/Thal
+//   Purpose: Some stuff that's common between the games, and some temporary stuff.
+//------------------------------------------------
+#define DIR_HEADER_SIZE 2048
+#define DIR_MAGIC 2048
+#define ROOT_DIR_COUNT 256
+#define HEADER_ERROR_CODE 0xFFFFFFFF
+
+#define TEXTURE_DATA_NORMAL_SIZE 524288
+#define SUBLEVEL_MOBY_COUNT 64
+
+typedef struct jmp {
+	uint32 offset;
+} Jump<read=Str("Offset [%d]", this.offset)>;
+
+typedef struct blobby (uint64 size){
+	local uint64 arrsize = size;
+	byte data[size];
+} Blob<read=Str("(%d)", this.arrsize)>;
+
+typedef struct file_entry {
+    uint32 offset <format=decimal>; 
+    uint32 size <format=decimal>;
+	local uint isDirectory;
+} FileEntry <size=8, read=Str("%s [%d, %d]", (this.isDirectory) ? "Directory" : "File", this.offset, this.size)>;
+
+// Samples are directly listed in the first file of a sublevel, after texture VRAM data
+typedef struct spuapcdm {
+	byte shift_filter;
+	byte flags;
+	byte compressed_data[14];
+} SPUAPCDM<read=Str("Shift Filter: %d, flags: %d", this.shift_filter, this.flags)>;
