@@ -34,9 +34,9 @@ typedef struct rgbi {
 typedef struct modelcoordinates {
 	uint16 y;
 	uint16 x;
-	uint16 unused;
+	uint16 unk;
 	uint16 z;
-} ModelCoordinate<optimize=true, read=Str("XYZ: %d, %d, %d | unk: %d", this.x, this.y, this.z, this.unused)>;
+} ModelCoordinate<optimize=true, read=Str("XYZ: %d, %d, %d | unk: %d", this.x, this.y, this.z, this.unk)>;
 
 // Ah yes. BigCoordinates. Some 32 bit coordinates are stored in the Portal structures.
 typedef struct bigcoords {
@@ -47,11 +47,11 @@ typedef struct bigcoords {
 
 // Believe this is mainly used in the Sky structure.
 typedef struct spyroidx {
-	uint32 unused : 2;
+	uint32 unk : 2;
 	uint32 first : 10;
 	uint32 second : 10;
 	uint32 third : 10;
-} SpyroIndex<read=Str("%d, %d, %d - %d", this.first, this.second, this.third, this.unused)>;
+} SpyroIndex<read=Str("%d, %d, %d - %d", this.first, this.second, this.third, this.unk)>;
 
 /* Terrain vertex/color/poly format defs */
 // This is definitely used in the Sky structure.
@@ -145,8 +145,8 @@ typedef struct s1terrainsector {
 	S1MidPoly mid_polys[mid_info.poly_count];
 } S1TerrainSector<read=Str("XYZ: %d, %d, %d | LOD VCP: %d, %d, %d, unk: %d | MID VCP: %d, %d, %d, unk: %d",
 	this.pos.x, this.pos.y, this.pos.z,
-	this.lod_info.vert_count, this.lod_info.color_count, this.lod_info.poly_count, this.lod_info.unused,
-	this.mid_info.vert_count, this.mid_info.color_count, this.mid_info.poly_count, this.mid_info.unused)>;
+	this.lod_info.vert_count, this.lod_info.color_count, this.lod_info.poly_count, this.lod_info.unk,
+	this.mid_info.vert_count, this.mid_info.color_count, this.mid_info.poly_count, this.mid_info.unk)>;
 
 typedef struct s1terrainmodel {
 	local int64 base = FTell();
