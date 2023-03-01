@@ -20,7 +20,7 @@ typedef struct jmp {
 typedef struct blobby (uint64 size){
 	local uint64 arrsize = size;
 	byte data[size];
-} Blob<read=Str("(%d)", this.arrsize)>;
+} Blob;
 
 typedef struct file_entry {
     uint32 offset <format=decimal>; 

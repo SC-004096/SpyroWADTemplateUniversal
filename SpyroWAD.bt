@@ -37,6 +37,7 @@ int populate_file_entries(uint64 total_possible_dir_count, uint &found_count, ui
 int populate_header_something(DirectoryListing &header, uint &found);
 struct DirectoryFiles;
 
+
 typedef struct Dir (GameType game, DirectoryType dirtype) {
 	local GameType type = game;
 	local DirectoryType dirtype = dirtype;
@@ -72,7 +73,13 @@ typedef struct Dir (GameType game, DirectoryType dirtype) {
 	// if(dirtype == DIRECTORY_SUBLEVEL) Printf("%d\r\n", parentof(parentof(this)).header.found);
 	DirectoryListing header(dir_max); // <open=true>
 	DirectoryFiles files(header); //<open=true>;
-} Directory<open=false>;
+} Directory<open=false, read=DirectoryGetPortals(this)>;
+
+string DirectoryGetPortals(Directory &d) {
+	return (exists(d.files.level_models.portals.count) && (d.files.level_models.portals.count > 0)) ?
+		Str("%d Portals", d.files.level_models.portals.count) :
+		Str("");
+}
 
 // The actual header with entries and sometimes the moby jump list, and other stuff.
 typedef struct DirHeaderList (uint32 max_directories) {
